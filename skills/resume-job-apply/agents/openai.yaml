@@ -1,0 +1,7 @@
+interface:
+  display_name: "Resume Job Apply"
+  short_description: "Screen jobs and manage approved applications"
+  default_prompt: "Use $resume-job-apply to analyze this resume and prepare a confirmed job-application batch."
+
+policy:
+  allow_implicit_invocation: true
