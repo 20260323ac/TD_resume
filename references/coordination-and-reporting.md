@@ -1,60 +1,48 @@
-# Coordination, Records, and Reporting
+# Coordination and Reporting
 
-## Worker model
+## Worker boundaries
 
-Use separate workers only when the host supports delegation and the user/task authorizes it:
+Use delegation only when the host supports it and the current user/task authorizes it. Discovery can be parallel; a worker returns evidence-backed candidate records and never submits before coordinator approval. A response analyst may classify responses during the authorized active task but does not answer recruiters. The primary coordinator owns profile confirmation, deduplication, manifests, batch confirmation, the sole writer lock, reconciliation, and final reporting. Never let concurrent workers control the same account/session or write the same data path. Keep updates concise, but surface any needed user decision immediately.
 
-- **BOSS discovery/application worker:** finds and screens BOSS jobs; prepares one greeting for each approved job. It does not send before batch approval.
-- **智联 discovery/application worker:** finds and screens 智联 jobs; prepares the resume-submission action. It does not send before batch approval.
-- **Response analyst:** observes user-authorized post-application conversations, classifies replies, and calculates outcomes. It does not answer recruiters.
-- **Coordinator (primary agent):** owns profile confirmation, shared candidate ledger, cross-platform deduplication, batch approval, sending authorization, reconciliation, and final report.
+“Background” means minimize interruptions during the active authorized task only; it does not mean hidden operation, unattended persistence, or post-task account monitoring.
 
-Workers should return structured records to the coordinator rather than sending the user repeated progress messages. Keep user-facing updates concise: profile confirmation, exact batch approval, blockers requiring user action, and final report. “Background” means minimize interruption while the authorized task is actively running; it does not imply hidden operation, persistence after task end, or unattended account access.
+## Deduplication and state
 
-Do not run concurrent workers against the same account/session. Search and preparation may run in parallel; browser actions should be serialized per account. If the UI is not stable or target identity cannot be verified, stop that queue.
+Follow the three distinct keys and priority in `ledger-schema.md`: same-platform historical four-tuple skips; same-batch cross-platform duplicate requires the user to choose; cross-batch cross-platform repeat requires explicit opt-in. Same company but different role is not a duplicate. Log the decision and reason in the ledger.
 
-## Candidate ledger fields
+`contacted.csv` is only a privacy-minimized deduplication index; never compute response or employer statistics from it. All statistics come from persisted `ledger.csv` rows, grouped by `candidate_id` so retries do not inflate denominators. Apply the highest-priority `state_conflict` rule before any ordinary success/uncertain/failure classification.
 
-Use a privacy-minimized ledger with:
+## Reply attribution and metrics
 
-`platform`, `employer_name`, `role_title`, `city`, `district_or_area`, `salary_as_listed`, `job_url`, `observed_at`, `posted_or_updated_at`, `employment_type`, `experience_requirement`, `education_requirement`, `industry`, `company_size`, `financing_stage_if_shown`, `core_duties`, `hard_requirements`, `resume_evidence`, `gaps`, `employer_identity_evidence`, `opening_activity_evidence`, `risk_signals`, `fit_disposition`, `confidence_label`, `selected_resume_projects`, `planned_action`, `message_text_if_any`, `batch_approval_state`, `send_state`, `sent_at`, `reply_state`, `reply_category`, `first_reply_at`, `notes`.
+Count a reply only when its timestamp is after the relevant confirmed send, the visible conversation/application record identifies the specific role, and it is not another role at the same employer. If any check fails, leave send state unchanged and add the item to attribution-pending `A`; do not store recruiter text. One candidate counts at most once in `R`; multiple messages for that candidate do not multiply it. A later reply must not overwrite the application state: update `reply_state` independently.
 
-Do not store credentials, verification codes, unnecessary private conversation text, or sensitive personal data. Store only information needed to avoid duplicates and produce the requested report. If a ledger is persisted, disclose its location and retain it only as long as useful for the user's job-search workflow.
+At report time, calculate per platform and per candidate:
 
-## Batch rules
+- `R`: uniquely attributed responding candidates;
+- `S`: candidates whose aggregate application state is `sent_successfully`;
+- `U`: candidates whose aggregate state remains `send_status_uncertain`;
+- `A`: count and privacy-minimized list of replies with unresolved attribution, excluded from `R`.
 
-- Prepare up to 150 candidates for BOSS and up to 150 for 智联 per user-requested batch.
-- Treat 150 as a target ceiling, not a quota. Report fewer when fewer qualify.
-- Default to cross-platform deduplication on employer + role + city. A second platform touch requires explicit user opt-in for that duplicate.
-- The user approves the exact list and action. Approval of profile criteria alone is insufficient.
-- If job, employer, platform, resume version, message, or action changes materially after approval, return that item for renewed approval.
-- Do not promise or target one submission per second. Speed must not remove identity checks, success verification, or platform rate-limit compliance.
+Show the two denominator endpoints using the same `R`: lower endpoint `R/(S+U)`, upper endpoint `R/S`; these are not a complete bound on the true rate if `A > 0`. Report bases and formula; do not show any ratio containing `A`. If denominator is zero, say “not calculable,” not zero percent. Clearly state that BOSS greetings and 智联 resume submissions are different treatments; response-rate comparison does not prove platform causality.
 
-## Response categories
+Include reviewed/qualifying/approved counts, verified sends, failed/uncertain/held/skipped reasons, replies, substantive replies, interview invitations, first-response latency among attributed replies, company/opening confidence, and sample-size caveats. Report by platform separately. Segment by city, role family, pay band, industry, company size, or template only when the sample supports a useful comparison.
 
-Classify incoming messages as one of:
+Observation window is 72 hours as a configurable working default, not a platform fact. It starts per candidate at confirmed `sent_at`; for uncertain candidates use `attempted_at` marked estimated. Batch-level full-window time is the last confirmed successful send plus 72 hours, but mark individual candidates still within their own windows. The skill ends after the batch and does not poll in the background. Only when the user runs it again, generate a report with `report_generated_at` and full/partial-window flags.
 
-- `substantive_role_discussion`: specific duties, technical stack, team, or role scope.
-- `interview_or_assessment`: concrete interview/test invitation.
-- `generic_acknowledgment`: greeting or template without role-specific content.
-- `role_closed_or_filled`: explicit closure or filled notice.
-- `clarification_requested`: recruiter asks a question that needs the user's answer.
-- `risk_or_mismatch`: asks for fees/loans, conflicts with listing, or requests suspicious/unnecessary information.
-- `no_reply_in_window`: no reply by the configured observation cutoff.
+## Stop reason codes
 
-The analyst may label hiring evidence as stronger or weaker, but cannot verify “genuine hiring” from a single message alone. Escalate interview scheduling, salary negotiation, personal-data requests, and any message requiring a commitment to the user.
+Use only concise codes, never page or conversation excerpts: `page_mismatch`, `duplicate_warning`, `captcha`, `rate_limit`, `login_expired`, `timeout`, `ambiguous_behavior`, `write_failed`. Visible signals trigger pause; do not invent numeric platform quota assumptions. Company/batch limits, daily limits, and consecutive-failure limits remain unset until the user chooses values. The 150-per-platform-per-batch maximum is a ceiling and does not authorize maximizing throughput.
 
-## Metrics
+## Retention and report footer
 
-Report each platform separately and state the observation window:
+Use `ledger-schema.md` for the complete retention, cleanup transaction, and privacy rules. Default retention: ledger/closed attempt evidence and batch/greeting content 90 days; contacted dedup index 365 days. Prompt before deletion and list affected counts/date ranges. Keep all runtime records outside Git and installation packages. End reports with the absolute data location, active retention periods, and next cleanup reminder; do not include recruiter-side message text or personal contact details.
 
-- qualifying jobs / jobs reviewed;
-- user-approved jobs / qualifying jobs;
-- verified successful sends / approved jobs attempted;
-- substantive replies / verified successful sends;
-- interview invitations / verified successful sends;
-- median or clearly defined first-response time among replies;
-- stale/uncertain/high-risk listing counts;
-- duplicate and skipped counts with reasons.
+## Report outline
 
-Also segment cautiously by city, role family, compensation band, industry, and company size only when sample sizes support a meaningful comparison. Show denominators; avoid overinterpreting small samples. BOSS greeting and 智联 resume submission are different interventions, so raw response-rate differences do not establish platform causality.
+1. Batch ID/hash, approved count, selected resume version, action, and report timestamp.
+2. Per-platform reviewed/qualified/approved/sent counts and exceptions.
+3. `R/S/U/A` bases, `A` count/list, both endpoints and formula, denominator/window caveats.
+4. Candidate-level outcome detail grouped by employer, with evidence and concise reason codes.
+5. Risks, conflicts, uncertain states, and items requiring user action.
+6. Observed patterns with sample-size limitations; next-batch proposals (not applied automatically).
+7. Data path, retention, and next cleanup reminder.

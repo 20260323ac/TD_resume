@@ -1,75 +1,73 @@
 # Platform Workflow
 
-## Human login and entry points
+## Manual access and capability checks
 
-The user manually signs into the job-seeker account and handles CAPTCHA, account recovery, and verification prompts. Do not use stored credentials or automate login.
+The user signs into the job-seeker account manually, handles verification/CAPTCHA, and chooses/uploads the resume. Never ask for or enter credentials or one-time codes. Use official job-seeker entry points; do not assume a registration/advertising landing page is the job-seeker interface. Confirm account, selected city, and exact uploaded resume version. If ambiguous or unavailable, pause for the user. Do not upload or change a resume unless explicitly authorized.
 
-Use official entry points and select the confirmed city in the platform UI. Avoid hard-coded city paths (for example, a Shenzhen-specific BOSS URL) when the user's confirmed target city differs. A registration/advertising landing page is not assumed to be a job-seeker page; verify the visible site and account role before proceeding. Do not create accounts, change account identity, or upload a resume unless explicitly authorized.
+Before starting a batch, initialize/validate the external data path and recover prior state as described in `ledger-schema.md`. If the directory is unwritable, lock unavailable, incomplete event reconciliation exists, or batch/message hashes cannot be verified, do not search, filter, or send.
 
-Confirm that the resume currently selected on 智联 is the version the user approved. If the resume is unavailable or ambiguous, pause for the user.
+## Screen and prepare
 
-## Platform actions
+Read the complete job description and record the exact employer, role, city, salary as listed, URL, requirements, evidence, gaps, and action. Screen employer identity, opening activity, fit, and risk separately using `screening-and-evidence.md`. Do not click apply/communicate during discovery. Create a candidate ledger row and stable `candidate_id`; apply same-platform/cross-platform deduplication before preparing a batch.
+
+Prepare up to 150 qualifying openings per platform; the number is a ceiling, not a quota. Do not relax filters. For each accepted candidate choose only project evidence supported by the resume. Build an immutable manifest and exact greeting file/hash where applicable. Show a summary expandable to every candidate and action, including exceptions. Ask for explicit confirmation naming batch ID, batch hash, count, resume version, and platform actions. Any material change requires a new manifest and renewed confirmation.
+
+## Execute one approved action at a time
+
+For each item, check the visible employer, role, city, and platform action against the approved manifest immediately before acting. Follow the durable write-ahead protocol in `ledger-schema.md`: persist intent before any click; execute once; verify observable result; persist result; write the attempt row; recompute the deduplication index. If a step or durable write fails, pause. Never click the next item while recovery or an uncertain result is unresolved.
 
 ### BOSS直聘
 
-For each approved role:
-
-1. Confirm the visible employer, job title, and city match the ledger entry.
-2. Confirm the control performs one initial communication action.
-3. Send one short, role-specific greeting using only supported resume facts.
-4. Do not attach/submit a resume through the greeting, send a second message, or continue the conversation automatically.
-5. Verify the platform visibly records the greeting as sent; otherwise mark uncertain and inspect before retrying.
+Send exactly one user-approved, role-specific greeting using the exact saved text whose hash matches the manifest. Do not attach a resume, send a second message, or continue the conversation automatically. Visible success evidence is a real outgoing message bubble or a sent record attributable to the target conversation. Empty input, a disabled button, loading state, or timeout alone is not success.
 
 ### 智联招聘
 
-For each approved role:
+Submit the user's already-uploaded resume version confirmed for the batch. Do not invent a greeting; `action=resume_delivery` uses `message_hash: null` and no message file. Verify a visible application record or other attributable platform receipt. An incomplete form, loading state, or button change alone is not success.
 
-1. Confirm the visible employer, job title, city, and application form match the ledger entry.
-2. Confirm the selected, already-uploaded resume is the version shown in the approved batch.
-3. Submit the application with that resume. Do not add unapproved attachments, answers, salary claims, or personal details.
-4. Verify the platform visibly records successful submission; otherwise mark uncertain and inspect before retrying.
+## Outcome and stop rules
 
-## Detailed end-to-end diagram
+Use `sent_confirmed` only with visible target-specific evidence; use `failed` only when the page confirms the action did not occur; otherwise record `unverified`. A greeting bubble or application record must match the approved job, not merely the same employer. Do not infer success from input clearing, button state, or page appearance alone.
+
+Stop the affected queue immediately on CAPTCHA, rate-limit/frequency warning, account anomaly/login expiry, target/page mismatch, duplicate warning, unclear submission behavior, unexpected data request, or durable storage failure. Store only the reason code, not page/chat text. Do not bypass controls or retry an uncertain attempt. Tell the user what needs attention. A response analyst may classify conversations only during the authorized active task, cannot reply to recruiters, and must not copy recruiter message text into records. No background polling after the task ends.
+
+## Interrupt and resume
+
+Persist `queue_position` after each reconciled candidate. On resumption, first complete log/ledger/contacted reconciliation and cleanup-plan recovery. Then verify: (1) same account identity, (2) same city/filter controls, (3) selected uploaded resume matches the confirmed manifest, and (4) last attempted item has a resolved send state. An `unverified` item is not retried; inspect the actual conversation/application record and append a valid resolution or ask the user. Resume only from the first still-approved, unattempted item. If visible page behavior no longer matches the recorded evidence pattern, stop and request review rather than guessing.
+
+## End-to-end flow
 
 ```mermaid
 flowchart TD
-    A[Resume or explicit job-application request arrives] --> B{Is this a job-search/application request?}
-    B -- No --> X[Answer the request without starting applications]
-    B -- Yes --> C[Extract resume facts, user preferences, inferences, and unknowns]
-    C --> D[Propose role families, cities, filters, and project evidence]
-    D --> E{User confirms or edits profile}
-    E -- Edit --> D
-    E -- Confirm --> F[User manually signs in to both job-seeker accounts]
-    F --> G{Correct account, city controls, and resume available?}
-    G -- No --> H[Pause and hand control to user]
-    H --> G
-    G -- Yes --> I[Coordinator dispatches discovery tasks]
-    I --> J1[BOSS discovery worker]
-    I --> J2[智联 discovery worker]
-    J1 --> K1[Read full JD and collect evidence]
-    J2 --> K2[Read full JD and collect evidence]
-    K1 --> L[Coordinator checks employer, opening activity, fit, risk, and duplicates]
-    K2 --> L
-    L --> M{Pass hard gates and no high-risk signal?}
-    M -- No --> N[Skip or hold with reason]
-    M -- Yes --> O[Select supported project evidence and prepare platform action]
-    O --> P[Prepare up to 150 BOSS and up to 150 智联 candidates]
-    P --> Q[Present exact roles, resume version, actions, and messages]
-    Q --> R{User approves this exact batch?}
-    R -- No --> S[Edit, defer, or cancel batch]
-    R -- Yes --> T[Run one serial queue per account; separate accounts may proceed independently]
-    T --> U1[BOSS: send one greeting only]
-    T --> U2[智联: submit approved uploaded resume]
-    U1 --> V[Verify visible outcome and update ledger]
-    U2 --> V
-    V --> W{Result ambiguous, page mismatch, CAPTCHA, or rate limit?}
-    W -- Yes --> Y[Stop that queue and request user action if needed]
-    W -- No --> Z[Continue with next approved record]
-    Z --> AA[Response analyst observes only within authorized active scope]
-    AA --> AB[Classify replies; do not answer for the user]
-    AB --> AC[Report separate platform metrics, evidence, caveats, and next-batch proposals]
+    A[Resume or explicit application request] --> B{Application intent?}
+    B -- No --> X[Answer only; no search or external action]
+    B -- Yes --> C[Extract facts, user statements, inferences, unknowns]
+    C --> D[Draft profile and project evidence]
+    D --> E[Ask once for consequential unknown preferences]
+    E --> F{User confirms profile?}
+    F -- Edit --> D
+    F -- No --> X
+    F -- Yes --> G[User manually signs in and selects city/resume]
+    G --> H{Account, city, resume, storage, lock valid?}
+    H -- No --> I[Pause; user resolves access or storage]
+    I --> G
+    H -- Yes --> J[Recover log, ledger, dedup index before search]
+    J --> K{Any unresolved blocking state?}
+    K -- Yes --> L[Reconcile A/U/B/C/D/E; no send]
+    L --> J
+    K -- No --> M[Discover and screen full job descriptions]
+    M --> N[Deduplicate; select supported project evidence]
+    N --> O[Create immutable manifests and greeting files]
+    O --> P[Present expandable exact batch and exceptions]
+    P --> Q{User confirms batch ID + hash + actions?}
+    Q -- No --> R[Revise as new batch or cancel]
+    Q -- Yes --> S[For each item: durable intent before click]
+    S --> T[Visible approved platform action once]
+    T --> U[Verify target-specific outcome]
+    U --> V[Persist result, attempt row, aggregate contacted]
+    V --> W{Restriction, mismatch, uncertain, or write failure?}
+    W -- Yes --> Y[Pause queue; reconcile or request user action]
+    W -- No --> Z{More approved items?}
+    Z -- Yes --> S
+    Z -- No --> AA[Report from persisted records; end active task]
+    AA --> AB[No background polling or recruiter replies]
 ```
-
-## User communication
-
-Keep messages concise. Normally ask for only two confirmations: (1) the search profile, and (2) the exact batch and platform actions. Send brief progress only when a user decision or intervention is needed, then provide one final report. Do not hide a material issue in the name of minimizing chatter.

@@ -1,25 +1,34 @@
-# Resume Job Apply Skill
+# Resume Job Apply
 
-A reusable Codex skill for resume-based job search, careful screening, user-approved outreach on BOSS直聘 and 智联招聘, and evidence-based response analysis.
+Skill instruction version **2.11**, updated from the reviewed v2.11 modification plan. It analyzes a supplied resume, screens openings, prepares an exact batch for user approval, and supports evidence-based outcome reporting on BOSS直聘 and 智联招聘.
 
 ## Install
 
-Copy the `resume-job-apply` directory into one of these locations:
+**From a local skill-root directory:** if the directory directly contains `SKILL.md` (as `D:\Skill\resume-job-apply` does), use that directory as the skill root. Register or link that directory with the host; do not nest another `resume-job-apply` directory inside it.
 
-- **Personal skill:** `~/.codex/skills/resume-job-apply/`
-- **Project skill:** `<project-root>/.agents/skills/resume-job-apply/`
+**From the current flat GitHub repository:** clone directly to the target skill path, for example:
 
-Keep `SKILL.md` at the skill directory root and preserve the `references/` folder. Restart or refresh Codex if the skill does not appear immediately. On another agent platform, adapt the frontmatter and skill-discovery directory to that platform's documented format.
+```powershell
+git clone <repository-url> "$HOME\.codex\skills\resume-job-apply"
+```
 
-Invoke explicitly with `$resume-job-apply`, or describe a resume-based job search. The skill does not contain the user's resume, credentials, or account data.
+The clone root itself is the skill root because it contains `SKILL.md`. For an older repository revision that contains `skills/resume-job-apply/`, use that subdirectory as the skill root, not the repository root. Keep `references/` and `agents/` alongside `SKILL.md`; refresh/restart the host if the skill is not discovered.
 
-## Behavior summary
+## Use and limits
 
-- Requires profile confirmation and a separate exact-batch confirmation before external applications.
-- Prepares up to 150 qualifying openings per platform; it does not relax criteria to hit a quota.
-- BOSS: one tailored greeting only, no resume attached, no automated follow-up.
-- 智联招聘: submit the approved, already-uploaded resume.
-- Supports parallel discovery and a separate response analyst when delegation is available, while serializing UI control per account.
-- Never bypasses CAPTCHA, login, rate limits, or platform controls.
+- The user manually signs in and selects the uploaded resume. The skill never handles credentials, verification codes, CAPTCHA, or platform restrictions.
+- Profile confirmation and exact per-batch confirmation are separate. A batch confirmation does not carry over.
+- Maximum 150 qualifying records per platform per batch; never lower screening standards to fill the target. BOSS sends one approved greeting only; 智联 submits the approved uploaded resume.
+- No unattended monitoring or hidden automation. Real sending requires the user's explicit authorization for the exact batch and action.
+- Runtime records are stored outside the repository, by default under `C:\Users\LiYan\.codex\resume-job-apply-data\` on this computer; approved outgoing greetings are kept for 90 days and the minimal deduplication index for 365 days. Runtime records are never included in an install package.
 
-See `references/platform-workflow.md`, `references/screening-and-evidence.md`, and `references/coordination-and-reporting.md` for operational details.
+## Reference map
+
+- `references/intake-contract.md`: resume facts, user statements, inferences, unknowns, and the one-time preference check.
+- `references/screening-and-evidence.md`: fit, company/opening evidence, salary normalization, education, and transferability.
+- `references/ledger-schema.md`: durable records, IDs, event protocol, privacy, retention, recovery, and cleanup.
+- `references/coordination-and-reporting.md`: deduplication, worker boundaries, aggregation, metrics, and reporting.
+- `references/platform-workflow.md`: platform-specific actions, UI evidence, pauses, and resumption.
+- `references/templates.md`: exact-batch summary, outgoing greeting, and report formats.
+
+The user's resume, credentials, and runtime ledger are not part of this package. See `CHANGELOG.md` for the human-readable version history.

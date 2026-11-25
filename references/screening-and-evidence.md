@@ -1,48 +1,33 @@
-# Screening and Evidence Rules
+# Screening and Evidence
 
-Evaluate three separate questions. Do not collapse them into a single unsupported “real/fake” judgment.
+Assess employer identity, the specific opening, and candidate fit as separate questions. Cite the visible source or resume evidence for each conclusion. A platform badge or recruiter reply alone does not prove an opening is active; no reply alone does not prove it is fake.
 
-## 1. Employer and recruiter identity
+## Evidence labels
 
-Record evidence such as:
+For each fact, use `resume_fact`, `user_stated`, `inference`, or `unknown`. For each requirement, use `meets`, `partial/transferable`, `not_evidenced`, or `fails`. Missing evidence is not failure. For employer identity use `consistent`, `partially_corroborated`, `inconsistent`, or `unknown`; for opening activity use `strong_current_signal`, `plausible_activity_unconfirmed`, `uncertain_stale`, or `high_risk`.
 
-- Employer's displayed full legal/business name and platform profile.
-- Whether the employer's stated business reasonably relates to the product and role.
-- Whether recruiter identity/affiliation and work location are consistent with the employer's profile and job description.
-- Whether independent public company information or an official careers page corroborates the identity, when available.
+## Employer and opening
 
-Use `consistent`, `partially corroborated`, `inconsistent`, or `unknown`. Platform verification is supporting evidence, not proof that the specific opening is active.
+Record the displayed company name, platform profile, employer/location consistency, job URL, observed time, posted/updated time if shown, and concrete duties, stack, pay, employment type, and hiring steps. Use independent public or official careers evidence when available. Keep the original company/role text. Do not merge subsidiaries based on fuzzy similarity; only normalize legal suffixes and use user-confirmed aliases. Similar-but-unverified names go to manual review.
 
-## 2. Specific opening activity and quality
+Treat the opening as higher-confidence only when the listing is current and specific or there is role-specific activity. Hold or skip material identity inconsistencies, pay-to-work/training-loan demands, suspicious data requests, stale/reposted listings, bait-and-switch duties, or unexplained compensation contradictions. State the signal; do not make unsupported fraud accusations.
 
-Record:
+## Fit and transferability
 
-- Job URL, observed date/time, posted/updated date if shown, and whether the listing remains open.
-- Concrete duties, product context, platform/chip/toolchain, required experience/education, compensation structure, location, and employment type.
-- Whether the recruiter can provide role-specific information, interview steps, or a realistic hiring timeline.
-- Signs of stale/reposted listings, vague descriptions, bait-and-switch duties, or inconsistent salary/details.
+Map each hard requirement to explicit resume evidence. Mark absent resume evidence `not_evidenced`; do not infer unlisted skills, ownership, or outcomes. A `partial/transferable` judgment must state (1) the genuinely shared problem or skill, (2) the concrete gap, and (3) an estimated—not promised—time/cost to close it. Do not claim the adjacent skill as already possessed.
 
-Classify:
+Education:
 
-- `strong current signal`: recent/active listing plus concrete role details or role-specific recruiter activity.
-- `plausible, activity unconfirmed`: coherent employer and concrete listing, but limited evidence of current hiring.
-- `uncertain/stale`: old, incomplete, contradictory, or repeatedly reposted information.
-- `high risk`: material identity mismatch, pay-to-work/training-loan demand, or other clear warning sign.
+- Explicit exclusive requirement (e.g. “must”, “only”, “not accepted”): mismatch is `fails`; quote the requirement.
+- Preferred/bonus condition: mismatch is `review`, not `fails`.
+- Soft, ambiguous, or missing information: `unknown`; ask the user if it materially affects the application.
 
-Do not label a role definitively fake solely because there is no reply. Do not label it genuinely hiring solely because a recruiter replied.
+Disposition: `apply_candidate` when core duties align, hard requirements are met or gaps are minor, and no high-risk signal exists; `review` for uncertain requirements/preferences; `skip` for failed hard requirements, material role mismatch, duplicate, or high-risk condition. Do not use an opaque numeric score as the sole decision rule.
 
-## 3. Candidate fit
+## Salary normalization
 
-Map each hard requirement to explicit resume evidence. Mark each as `meets`, `partial/transferable`, `not evidenced`, or `fails`. A missing item is not evidence that the user has it. Identify material gaps (e.g., required Linux kernel, AUTOSAR, safety certification, or a specific MCU absent from the resume) and avoid treating an adjacent keyword as equivalent experience.
+Always preserve `salary_as_listed`. Parse, when possible, `salary_min`, `salary_max`, `salary_months`, `pay_type`, and `bonus_note`, plus `salary_normalized_monthly` and `salary_assumption`. A 13-salary annual package may be shown as an estimated monthly equivalent only with the assumption stated. For a daily rate, 21.75 workdays/month is an estimate, not a verified payroll basis. Base+performance+allowance remains structurally uncertain; retain the original wording. “面议”, missing, or unparsable pay is `unknown`; never guess or compare it as a known amount.
 
-Use a fit disposition:
+## Evidence that a job is genuine
 
-- `apply_candidate`: core duties align, hard requirements are met or only minor gaps remain, and no high-risk signal exists.
-- `review`: uncertain requirement, unclear role, or user preference needed.
-- `skip`: hard requirement fails, duties materially mismatch, duplicate, or high-risk condition.
-
-Do not use an opaque numeric score as the sole decision rule. If a score is useful for sorting, keep the evidence and hard gates visible.
-
-## Red flags and response handling
-
-Put a role on `risk_hold` for requests to pay a deposit, buy mandatory training, take a training loan, provide unnecessary financial credentials, or accept a role whose actual duties materially differ from the listing. Explain the specific signal; do not accuse a company of fraud without substantiation. Ask the user before sharing additional sensitive information or continuing a consequential conversation.
+Use confidence labels and observed signals, not a binary “real/fake” claim. Strong identity evidence and a current, concrete opening increase confidence but do not guarantee hiring. Recruiter responses are evidence only when they contain role-specific information; generic acknowledgments are not proof. Record contradictions and uncertainty for the user to decide.
