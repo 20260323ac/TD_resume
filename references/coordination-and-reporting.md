@@ -8,7 +8,7 @@ Use delegation only when the host supports it and the current user/task authoriz
 
 ## Deduplication and state
 
-Follow the three distinct keys and priority in `ledger-schema.md`: same-platform historical four-tuple skips; same-batch cross-platform duplicate requires the user to choose; cross-batch cross-platform repeat requires explicit opt-in. Same company but different role is not a duplicate. Log the decision and reason in the ledger.
+Follow the three distinct keys and priority in `ledger-schema.md`, using only declared `application_state` values: a confirmed same-platform historical four-tuple becomes `duplicate_skipped`; an uncertain contact becomes `risk_hold` + `reason_code=may_have_contacted`; a `state_conflict` becomes `risk_hold` + `reason_code=state_conflict`; same-batch or prior cross-platform duplicates become `risk_hold` + `reason_code=cross_platform_duplicate` until the user chooses or opts in. Same company but different role is not a duplicate. Record the state and reason on the candidate ledger row; do not invent `duplicate_uncertain`, `duplicate_cross_platform`, or use `state_conflict` as an application state. Keep `reason_code` separate from attempt/queue `stop_reason_code` and from `note_code`.
 
 `contacted.csv` is only a privacy-minimized deduplication index; never compute response or employer statistics from it. All statistics come from persisted `ledger.csv` rows, grouped by `candidate_id` so retries do not inflate denominators. Apply the highest-priority `state_conflict` rule before any ordinary success/uncertain/failure classification.
 

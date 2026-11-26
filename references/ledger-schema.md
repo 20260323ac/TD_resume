@@ -44,14 +44,23 @@ Example `config.json` (optional numeric limits stay unset until the user chooses
 One explicit `row_type` column distinguishes `candidate` and `attempt`; never infer row type from status. Suggested fixed header (empty cells are allowed only where a field does not apply):
 
 ```text
-row_type,batch_id,batch_hash,candidate_id,platform,company_name,employer_key,role_name,role_key,city,district_or_area,job_url,salary_as_listed,salary_min,salary_max,salary_months,pay_type,bonus_note,salary_normalized_monthly,salary_assumption,observed_at,posted_or_updated_at,employment_type,experience_requirement,education_requirement,industry,company_size,financing_stage_if_shown,core_duties,hard_requirements,resume_evidence,gaps,employer_identity_evidence,opening_activity_evidence,risk_signals,fit_disposition,match_conclusion,confidence_label,selected_resume_projects,exception_flags,planned_action,action,template_id,message_hash,application_state,reply_state,reply_category,first_reply_at,attempt_id,attempt_no,attempted_at,sent_at,stop_reason_code,approved_by,approved_at,queue_position,note_code
+row_type,batch_id,batch_hash,candidate_id,platform,company_name,employer_key,role_name,role_key,city,district_or_area,job_url,salary_as_listed,salary_min,salary_max,salary_months,pay_type,bonus_note,salary_normalized_monthly,salary_assumption,observed_at,posted_or_updated_at,employment_type,experience_requirement,education_requirement,industry,company_size,financing_stage_if_shown,core_duties,hard_requirements,resume_evidence,gaps,employer_identity_evidence,opening_activity_evidence,risk_signals,fit_disposition,match_conclusion,confidence_label,selected_resume_projects,exception_flags,planned_action,action,template_id,message_hash,application_state,reply_state,reply_category,first_reply_at,attempt_id,attempt_no,attempted_at,sent_at,reason_code,stop_reason_code,approved_by,approved_at,queue_position,note_code
 ```
 
 - `candidate` row: screening/approval and `reply_state`; no `attempt_id`/`attempt_no`, no `sent_*` state, and no recruiter text. Candidate states: `candidate`, `screened_in`, `screened_out`, `awaiting_approval`, `approved`, `duplicate_skipped`, `risk_hold`, `quota_blocked`, `resume_mismatch`, `closed_or_expired`, `batch_cancelled`.
 - `attempt` row: one row per actual attempt, with unique `attempt_id` and increasing `attempt_no`; no `reply_state`; `application_state` is only `sent_successfully`, `sent_failed`, or `send_status_uncertain`. Never overwrite/delete an earlier attempt to record a retry.
+- `reason_code` is for candidate-level screening/deduplication holds; it is separate from `stop_reason_code`, which records why an attempt/queue stopped. Use only `may_have_contacted`, `state_conflict`, and `cross_platform_duplicate` for the deduplication cases below. For same-platform confirmed contact, use `application_state=duplicate_skipped`; `reason_code` may remain empty because the state itself identifies the skip. Do not put deduplication reasons into `stop_reason_code` or `note_code`.
+- Deduplication mapping: `contacted_confirmed` → `application_state=duplicate_skipped`; `contact_uncertain` → `application_state=risk_hold`, `reason_code=may_have_contacted`; `state_conflict` → `application_state=risk_hold`, `reason_code=state_conflict`; same-batch or prior cross-platform duplicate → `application_state=risk_hold`, `reason_code=cross_platform_duplicate`. Do not invent `duplicate_uncertain`, `duplicate_cross_platform`, or `state_conflict` as `application_state` values. Keep the candidate held until the user resolves the cross-platform choice or conflict; resolution does not itself authorize sending, which still requires exact batch confirmation.
 - A confirmed retry may move the candidate back to `approved` only after visible evidence confirms the prior attempt was not sent. An uncertain attempt is never retried until reconciled.
 - Dates are ISO 8601 with timezone. `attempted_at` is the intent/action time; `sent_at` is recorded only for confirmed sends. Report states and metrics are derived from these persisted rows plus the event log, not conversation memory.
 - `reply_category` is one of `substantive_role_discussion`, `interview_or_assessment`, `generic_acknowledgment`, `role_closed_or_filled`, `clarification_requested`, `risk_or_mismatch`, or `no_reply_in_window`; `first_reply_at` is set only for an attributable reply. Store no message text. `note_code` is restricted to `prefilter`, `backfill`, or `manual_confirm`; it is not free text.
+
+Reason-code namespaces are disjoint:
+
+| Field | Applies to | Values |
+|---|---|---|
+| `reason_code` | Candidate screening/deduplication | `may_have_contacted`, `state_conflict`, `cross_platform_duplicate` |
+| `stop_reason_code` | Attempt/queue stop | `page_mismatch`, `duplicate_warning`, `captcha`, `rate_limit`, `login_expired`, `timeout`, `ambiguous_behavior`, `write_failed` |
 
 Legacy name mapping (read for migration only; write only the current name):
 

@@ -1,6 +1,6 @@
 # Resume Job Apply
 
-Skill instruction version **2.11**, updated from the reviewed v2.11 modification plan. It analyzes a supplied resume, screens openings, prepares an exact batch for user approval, and supports evidence-based outcome reporting on BOSS直聘 and 智联招聘.
+Skill instruction version **2.12**, updated from the reviewed v2.11 plan with the deduplication state/reason-code corrections from v2.12. It analyzes a supplied resume, screens openings, prepares an exact batch for user approval, and supports evidence-based outcome reporting on BOSS直聘 and 智联招聘.
 
 ## Install
 
